@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #f3f6ea;
+    --tinta: #14281d;
+    --indigo: #1e5c3b;
+    --mostaza: #1e5c3b;
+    --linea: #d3dcc4;
+    --blanco: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Archivo", system-ui, sans-serif; background: var(--fondo); color: var(--tinta); line-height: 1.45; }
+  header { background: #1e5c3b; }
+  .logo { display: block; width: 100%; max-width: 1100px; margin: 0 auto; height: auto; }
+  .solo-lectores { position: absolute; left: -9999px; }
+  .bajada { max-width: 1100px; margin: 0 auto; padding: 18px 18px 16px; color: #3b4a40; }
+  nav { display: flex; gap: 8px; padding: 0 18px 18px; max-width: 1100px; margin: 0 auto; flex-wrap: wrap; }
+  nav button { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--indigo); background: transparent; color: var(--indigo); cursor: pointer; }
+  nav button[aria-pressed="true"] { background: var(--indigo); color: var(--blanco); }
+  main { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 18px 40px; max-width: 1100px; margin: 0 auto; }
+  @media (min-width: 720px) { main { grid-template-columns: repeat(4, 1fr); gap: 20px; } }
+  article { background: var(--blanco); border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .foto { aspect-ratio: 1 / 1; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; color: rgba(255,255,255,.9); text-align: center; padding: 10px; }
+  .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .info { padding: 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .nombre { font-weight: 600; }
+  .talles { font-size: .85rem; color: #5a6578; white-space: pre-line; }
+  .marca { font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5a6a5f; }
+  .muestras { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 3px 4px; }
+  .muestra { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); padding: 0; cursor: pointer; }
+  .muestra[aria-pressed="true"] { outline: 2px solid var(--tinta); outline-offset: 2px; }
+  .precio-fila { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; }
+  .precio { font-weight: 800; font-size: 1.15rem; }
+  .antes { text-decoration: line-through; color: #5a6a5f; font-size: .9rem; }
+  .badge { background: #c8102e; color: #fff; font-size: .75rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
+  .info a { margin-top: auto; padding-top: 10px; }
+  .btn { display: block; text-align: center; text-decoration: none; background: var(--mostaza); color: #eefcb0; font-weight: 800; padding: 10px; border-radius: 8px; }
+  .btn:hover { filter: brightness(.95); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }
+  footer { text-align: center; padding: 0 18px 32px; font-size: .9rem; color: #5a6578; }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="logo-gozo.png" alt="Gozo, desde 1998">
+</header>
+<h1 class="solo-lectores" id="titulo">Gozo</h1>
+<p class="bajada" id="bajada">Ropa y calzado. Elegí lo que te gusta y consultanos por WhatsApp.</p>
+
+<nav aria-label="Filtrar por categoría" id="filtros"></nav>
+<main id="lista"></main>
+<footer id="pie"></footer>
+
+<script>
+  // ============ EDITÁ ESTA PARTE ============
+  const LOCAL = "Gozo";
+  const WHATSAPP = "5491176200922"; // código de país + área + número, sin + ni espacios
+  const MONEDA = "$";
+
+  // Cada producto: nombre, categoria ("Ropa" o "Calzado"), precio y foto (nombre del archivo).
+  // Opcionales: marca, precioAntes (muestra el precio tachado y el % de descuento), talles,
+  // colores (lista de { nombre, hex }; el cliente elige uno y el color viaja en el mensaje de WhatsApp).
+  const PRODUCTOS = [
+    {
+      nombre: "Pantalones rectos", categoria: "Ropa", precio: 8000, talles: "40, 42, 44, 46, 48",
+      colores: [
+        { nombre: "Verde militar", hex: "#4b5320" },
+        { nombre: "Negro", hex: "#111111" },
+        { nombre: "Azul marino", hex: "#1b2a4a" }
+      ],
+      color: "#1e5c3b", foto: "pantalones-rectos.jpg"
+    }
+  ];
+  // ==========================================
+
+  const fmt = n => MONEDA + n.toLocaleString("es-AR");
+  const lista = document.getElementById("lista");
+  const filtros = document.getElementById("filtros");
+  let actual = "Todo";
+
+  document.title = "Catálogo · " + LOCAL;
+  document.getElementById("titulo").textContent = LOCAL;
+  document.getElementById("pie").textContent = "Precios y stock sujetos a cambios. Consultá disponibilidad por WhatsApp.";
+
+  function linkWA(p, color) {
+    const msg = "Hola, quiero consultar por: " + p.nombre + (color ? " en color " + color : "") + " (" + fmt(p.precio) + ")";
+    return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(msg);
+  }
+
+  function dibujar() {
+    lista.innerHTML = "";
+    PRODUCTOS.filter(p => actual === "Todo" || p.categoria === actual).forEach(p => {
+      const a = document.createElement("article");
+      const foto = document.createElement("div");
+      foto.className = "foto";
+      foto.style.background = p.color;
+      if (p.foto) {
+        const img = document.createElement("img");
+        img.src = p.foto; img.alt = p.nombre; img.loading = "lazy";
+        foto.style.background = "none"; foto.appendChild(img);
+      } else { foto.textContent = p.categoria; }
+
+      const info = document.createElement("div");
+      info.className = "info";
+      const el = (clase, texto) => { const d = document.createElement("div"); d.className = clase; d.textContent = texto; return d; };
+
+      if (p.marca) info.appendChild(el("marca", p.marca));
+      info.appendChild(el("nombre", p.nombre));
+
+      const btn = document.createElement("a");
+      btn.className = "btn"; btn.target = "_blank"; btn.rel = "noopener"; btn.textContent = "Consultar";
+      const colores = p.colores || [];
+      btn.href = linkWA(p, colores.length ? colores[0].nombre : "");
+
+      if (colores.length) {
+        const fila = document.createElement("div");
+        fila.className = "muestras"; fila.setAttribute("role", "group"); fila.setAttribute("aria-label", "Colores");
+        const etiqueta = el("talles", "Color: " + colores[0].nombre);
+        colores.forEach((c, i) => {
+          const m = document.createElement("button");
+          m.className = "muestra"; m.style.background = c.hex;
+          m.title = c.nombre; m.setAttribute("aria-label", c.nombre);
+          m.setAttribute("aria-pressed", i === 0);
+          m.onclick = () => {
+            fila.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === m));
+            etiqueta.textContent = "Color: " + c.nombre;
+            btn.href = linkWA(p, c.nombre);
+          };
+          fila.appendChild(m);
+        });
+        info.append(fila, etiqueta);
+      }
+
+      if (p.talles) info.appendChild(el("talles", "Talles: " + p.talles));
+
+      const precio = document.createElement("div");
+      precio.className = "precio-fila";
+      precio.appendChild(el("precio", fmt(p.precio)));
+      if (p.precioAntes && p.precioAntes > p.precio) {
+        const pct = Math.round((1 - p.precio / p.precioAntes) * 100);
+        const bad = el("badge", "-" + pct + "%");
+        precio.append(bad, el("antes", fmt(p.precioAntes)));
+      }
+      info.append(precio, btn);
+      a.append(foto, info);
+      lista.appendChild(a);
+    });
+  }
+
+  ["Todo", ...new Set(PRODUCTOS.map(p => p.categoria))].forEach(c => {
+    const b = document.createElement("button");
+    b.textContent = c;
+    b.setAttribute("aria-pressed", c === actual);
+    b.onclick = () => {
+      actual = c;
+      filtros.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      dibujar();
+    };
+    filtros.appendChild(b);
+  });
+
+  dibujar();
+</script>
+</body>
+</html>
