@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catálogo</title>
+<title>Gozo | Ropa y calzado</title>
+<meta name="description" content="Gozo: ropa y calzado. Mirá el catálogo y consultá por WhatsApp.">
+<link rel="canonical" href="https://jalmerjaillitazabala-source.github.io/Gozo/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Gozo | Ropa y calzado">
+<meta property="og:description" content="Mirá el catálogo de Gozo y consultá por WhatsApp.">
+<meta property="og:image" content="https://jalmerjaillitazabala-source.github.io/Gozo/logo-gozo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
@@ -37,6 +43,9 @@
   .muestras { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 3px 4px; }
   .muestra { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); padding: 0; cursor: pointer; }
   .muestra[aria-pressed="true"] { outline: 2px solid var(--tinta); outline-offset: 2px; }
+  .talles-fila { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+  .talle { min-width: 42px; height: 38px; padding: 0 10px; border-radius: 8px; border: 1.5px solid var(--indigo); background: transparent; color: var(--indigo); font: inherit; font-weight: 600; cursor: pointer; }
+  .talle[aria-pressed="true"] { background: var(--indigo); color: #eefcb0; }
   .precio-fila { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; }
   .precio { font-weight: 800; font-size: 1.15rem; }
   .antes { text-decoration: line-through; color: #5a6a5f; font-size: .9rem; }
@@ -53,7 +62,7 @@
 <header>
   <img class="logo" src="logo-gozo.png" alt="Gozo, desde 1998">
 </header>
-<h1 class="solo-lectores" id="titulo">Gozo</h1>
+<h1 class="solo-lectores" id="titulo">Gozo, ropa y calzado</h1>
 <p class="bajada" id="bajada">Ropa y calzado. Elegí lo que te gusta y consultanos por WhatsApp.</p>
 
 <nav aria-label="Filtrar por categoría" id="filtros"></nav>
@@ -87,12 +96,15 @@
   const filtros = document.getElementById("filtros");
   let actual = "Todo";
 
-  document.title = "Catálogo · " + LOCAL;
-  document.getElementById("titulo").textContent = LOCAL;
+  document.title = LOCAL + " | Ropa y calzado";
+  document.getElementById("titulo").textContent = LOCAL + ", ropa y calzado";
   document.getElementById("pie").textContent = "Precios y stock sujetos a cambios. Consultá disponibilidad por WhatsApp.";
 
-  function linkWA(p, color) {
-    const msg = "Hola, quiero consultar por: " + p.nombre + (color ? " en color " + color : "") + " (" + fmt(p.precio) + ")";
+  function linkWA(p, color, talle) {
+    const detalle = [];
+    if (color) detalle.push("color " + color);
+    if (talle) detalle.push("talle " + talle);
+    const msg = "Hola, quiero consultar por: " + p.nombre + (detalle.length ? " en " + detalle.join(", ") : "") + " (" + fmt(p.precio) + ")";
     return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(msg);
   }
 
@@ -116,15 +128,20 @@
       if (p.marca) info.appendChild(el("marca", p.marca));
       info.appendChild(el("nombre", p.nombre));
 
+      const colores = p.colores || [];
+      const talles = Array.isArray(p.talles) ? p.talles : String(p.talles || "").split(",").map(x => x.trim()).filter(Boolean);
+      let color = colores.length ? colores[0].nombre : "";
+      let talle = "";
+
       const btn = document.createElement("a");
       btn.className = "btn"; btn.target = "_blank"; btn.rel = "noopener"; btn.textContent = "Consultar";
-      const colores = p.colores || [];
-      btn.href = linkWA(p, colores.length ? colores[0].nombre : "");
+      const actualizar = () => { btn.href = linkWA(p, color, talle); };
+      actualizar();
 
       if (colores.length) {
         const fila = document.createElement("div");
         fila.className = "muestras"; fila.setAttribute("role", "group"); fila.setAttribute("aria-label", "Colores");
-        const etiqueta = el("talles", "Color: " + colores[0].nombre);
+        const etiqueta = el("talles", "Color: " + color);
         colores.forEach((c, i) => {
           const m = document.createElement("button");
           m.className = "muestra"; m.style.background = c.hex;
@@ -132,23 +149,35 @@
           m.setAttribute("aria-pressed", i === 0);
           m.onclick = () => {
             fila.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === m));
-            etiqueta.textContent = "Color: " + c.nombre;
-            btn.href = linkWA(p, c.nombre);
+            color = c.nombre; etiqueta.textContent = "Color: " + color; actualizar();
           };
           fila.appendChild(m);
         });
         info.append(fila, etiqueta);
       }
 
-      if (p.talles) info.appendChild(el("talles", "Talles: " + p.talles));
+      if (talles.length) {
+        const fila = document.createElement("div");
+        fila.className = "talles-fila"; fila.setAttribute("role", "group"); fila.setAttribute("aria-label", "Talles");
+        const etiqueta = el("talles", "Elegí tu talle");
+        talles.forEach(t => {
+          const b = document.createElement("button");
+          b.className = "talle"; b.textContent = t; b.setAttribute("aria-pressed", "false");
+          b.onclick = () => {
+            fila.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+            talle = t; etiqueta.textContent = "Talle: " + t; actualizar();
+          };
+          fila.appendChild(b);
+        });
+        info.append(etiqueta, fila);
+      }
 
       const precio = document.createElement("div");
       precio.className = "precio-fila";
       precio.appendChild(el("precio", fmt(p.precio)));
       if (p.precioAntes && p.precioAntes > p.precio) {
         const pct = Math.round((1 - p.precio / p.precioAntes) * 100);
-        const bad = el("badge", "-" + pct + "%");
-        precio.append(bad, el("antes", fmt(p.precioAntes)));
+        precio.append(el("badge", "-" + pct + "%"), el("antes", fmt(p.precioAntes)));
       }
       info.append(precio, btn);
       a.append(foto, info);
