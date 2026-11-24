@@ -54,6 +54,17 @@
   .btn { display: block; text-align: center; text-decoration: none; background: var(--mostaza); color: #eefcb0; font-weight: 800; padding: 10px; border-radius: 8px; }
   .btn:hover { filter: brightness(.95); }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }
+  .ampliable { cursor: zoom-in; }
+  .visor { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 16px 24px; background: rgba(10, 20, 14, .94); }
+  .visor[hidden] { display: none; }
+  .visor img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 8px; }
+  .visor-pie { margin-top: 14px; text-align: center; color: #eefcb0; font-weight: 600; }
+  .visor-btn { position: absolute; width: 46px; height: 46px; border: 0; border-radius: 50%; background: #eefcb0; color: #14281d; font-size: 1.7rem; line-height: 1; cursor: pointer; }
+  .visor-cerrar { top: 14px; right: 14px; }
+  .visor-ant, .visor-sig { top: 50%; transform: translateY(-50%); }
+  .visor-ant { left: 8px; }
+  .visor-sig { right: 8px; }
+  .visor.una .visor-ant, .visor.una .visor-sig { display: none; }
   footer { text-align: center; padding: 0 18px 32px; font-size: .9rem; color: #5a6578; }
 </style>
 </head>
@@ -69,6 +80,14 @@
 <main id="lista"></main>
 <footer id="pie"></footer>
 
+<div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden>
+  <button class="visor-btn visor-cerrar" id="visor-cerrar" aria-label="Cerrar">&times;</button>
+  <button class="visor-btn visor-ant" id="visor-ant" aria-label="Foto anterior">&#8249;</button>
+  <img id="visor-img" alt="">
+  <button class="visor-btn visor-sig" id="visor-sig" aria-label="Foto siguiente">&#8250;</button>
+  <div class="visor-pie" id="visor-pie"></div>
+</div>
+
 <script>
   // ============ EDITÁ ESTA PARTE ============
   const LOCAL = "Gozo";
@@ -76,6 +95,7 @@
   const MONEDA = "$";
 
   // Cada producto: nombre, categoria ("Ropa" o "Calzado"), precio y foto (nombre del archivo).
+  // Varias fotos del mismo producto: usá fotos: ["a.jpg", "b.jpg"] en lugar de foto.
   // Opcionales: marca, precioAntes (muestra el precio tachado y el % de descuento), talles,
   // colores (lista de { nombre, hex }; el cliente elige uno y el color viaja en el mensaje de WhatsApp).
   const PRODUCTOS = [
@@ -100,6 +120,54 @@
   document.getElementById("titulo").textContent = LOCAL + ", ropa y calzado";
   document.getElementById("pie").textContent = "Precios y stock sujetos a cambios. Consultá disponibilidad por WhatsApp.";
 
+  // ---------- Visor de fotos ----------
+  const visor = document.getElementById("visor");
+  const vImg = document.getElementById("visor-img");
+  const vPie = document.getElementById("visor-pie");
+  let vFotos = [], vIdx = 0, vProd = null, vOrigen = null;
+
+  function vMostrar() {
+    vImg.src = vFotos[vIdx];
+    vImg.alt = vProd.nombre;
+    vPie.textContent = vProd.nombre + " · " + fmt(vProd.precio) + (vFotos.length > 1 ? " (" + (vIdx + 1) + "/" + vFotos.length + ")" : "");
+    visor.classList.toggle("una", vFotos.length < 2);
+  }
+  function vAbrir(p, fotos, origen) {
+    vProd = p; vFotos = fotos; vIdx = 0; vOrigen = origen;
+    vMostrar();
+    visor.hidden = false;
+    document.body.style.overflow = "hidden";
+    document.getElementById("visor-cerrar").focus();
+  }
+  function vCerrar() {
+    visor.hidden = true;
+    document.body.style.overflow = "";
+    if (vOrigen) vOrigen.focus();
+  }
+  function vMover(d) {
+    if (vFotos.length < 2) return;
+    vIdx = (vIdx + d + vFotos.length) % vFotos.length;
+    vMostrar();
+  }
+  document.getElementById("visor-cerrar").onclick = vCerrar;
+  document.getElementById("visor-ant").onclick = () => vMover(-1);
+  document.getElementById("visor-sig").onclick = () => vMover(1);
+  visor.addEventListener("click", e => { if (e.target === visor) vCerrar(); });
+  document.addEventListener("keydown", e => {
+    if (visor.hidden) return;
+    if (e.key === "Escape") vCerrar();
+    if (e.key === "ArrowLeft") vMover(-1);
+    if (e.key === "ArrowRight") vMover(1);
+  });
+  let toqueX = null;
+  visor.addEventListener("touchstart", e => { toqueX = e.touches[0].clientX; }, { passive: true });
+  visor.addEventListener("touchend", e => {
+    if (toqueX === null) return;
+    const dx = e.changedTouches[0].clientX - toqueX;
+    if (Math.abs(dx) > 50) vMover(dx < 0 ? 1 : -1);
+    toqueX = null;
+  });
+
   function linkWA(p, color, talle) {
     const detalle = [];
     if (color) detalle.push("color " + color);
@@ -115,10 +183,17 @@
       const foto = document.createElement("div");
       foto.className = "foto";
       foto.style.background = p.color;
-      if (p.foto) {
+      const fotos = p.fotos || (p.foto ? [p.foto] : []);
+      if (fotos.length) {
         const img = document.createElement("img");
-        img.src = p.foto; img.alt = p.nombre; img.loading = "lazy";
+        img.src = fotos[0]; img.alt = p.nombre; img.loading = "lazy";
         foto.style.background = "none"; foto.appendChild(img);
+        foto.classList.add("ampliable");
+        foto.tabIndex = 0;
+        foto.setAttribute("role", "button");
+        foto.setAttribute("aria-label", "Ver foto ampliada de " + p.nombre);
+        foto.onclick = () => vAbrir(p, fotos, foto);
+        foto.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); vAbrir(p, fotos, foto); } };
       } else { foto.textContent = p.categoria; }
 
       const info = document.createElement("div");
